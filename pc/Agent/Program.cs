@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Linq;
 using QRCoder;
 
 class Agent {
@@ -86,6 +87,8 @@ class Agent {
                 Console.WriteLine();
             }
         } catch (Exception e) { Console.WriteLine("qr console err: " + e.Message); }
+        var qrOnly = Environment.GetCommandLineArgs().Any(a => a == "--qr");
+        if (qrOnly) { Console.WriteLine("done"); return; }
         var listener = new TcpListener(System.Net.IPAddress.Any, 9000);
         listener.Start();
         Console.WriteLine("agent up");
