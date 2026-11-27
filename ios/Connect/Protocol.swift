@@ -1,6 +1,8 @@
 import Foundation
 
 struct AttachReq: Codable { let cmd: String; let pid: Int32; let module: String }
+struct UploadReq: Codable { let cmd: String; let name: String; let size: Int }
+struct RunReq: Codable { let cmd: String; let path: String }
 
 struct Frame {
     static func encode<T: Encodable>(_ v: T) throws -> Data {

