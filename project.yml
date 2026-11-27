@@ -1,0 +1,16 @@
+name: Connect
+options:
+  bundleIdPrefix: com.daocuna46
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  Connect:
+    type: application
+    platform: iOS
+    sources:
+      - ios
+    info:
+      path: ios/Info.plist
+      properties:
+        CFBundleDisplayName: Connect
+        NSLocalNetworkUsageDescription: "Connect to PC agent"
