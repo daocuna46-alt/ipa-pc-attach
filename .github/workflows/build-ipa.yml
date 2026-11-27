@@ -1,0 +1,26 @@
+name: build-ipa
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: select xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      - name: build unsigned
+        run: |
+          xcodebuild -project Connect.xcodeproj -scheme Connect \
+            -sdk iphoneos -configuration Release \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build/dd
+          mkdir -p build/ipa/Payload
+          cp -r build/dd/Build/Products/Release-iphoneos/Connect.app build/ipa/Payload/
+          cd build/ipa && zip -r ../Connect.ipa Payload
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Connect-ipa
+          path: build/Connect.ipa
