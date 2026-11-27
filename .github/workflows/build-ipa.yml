@@ -10,6 +10,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: install xcodegen
         run: brew install xcodegen
+      - name: list xcode
+        run: ls /Applications | grep -i xcode || true
       - name: generate project
         run: xcodegen generate
       - name: build unsigned
