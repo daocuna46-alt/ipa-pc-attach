@@ -78,6 +78,14 @@ class Agent {
             Console.WriteLine("QR saved: connect_qr.png");
         } catch (Exception e) { Console.WriteLine("qr err: " + e.Message); }
         Console.WriteLine("payload: " + payload);
+        try {
+            var q = new QRCodeGenerator();
+            var qd = q.CreateQrCode(payload, QRCodeGenerator.ECCLevel.Q);
+            foreach (var row in qd.ModuleMatrix) {
+                foreach (var cell in row) Console.Write(cell ? "██" : "  ");
+                Console.WriteLine();
+            }
+        } catch (Exception e) { Console.WriteLine("qr console err: " + e.Message); }
         var listener = new TcpListener(System.Net.IPAddress.Any, 9000);
         listener.Start();
         Console.WriteLine("agent up");
