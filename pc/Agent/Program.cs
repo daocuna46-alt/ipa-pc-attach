@@ -5,8 +5,21 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using QRCoder;
 
 class Agent {
+    static string GetLocalIP() {
+        foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()) {
+            if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
+            foreach (var addr in ni.GetIPProperties().UnicastAddresses) {
+                if (addr.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) {
+                    var ip = addr.Address.ToString();
+                    if (!ip.StartsWith("127.")) return ip;
+                }
+            }
+        }
+        return "127.0.0.1";
+    }
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -54,6 +67,17 @@ class Agent {
     static void Main() {
         var uploadDir = Path.Combine(AppContext.BaseDirectory, "uploads");
         Directory.CreateDirectory(uploadDir);
+        var hostIp = GetLocalIP();
+        var payload = hostIp + ":9000";
+        try {
+            var gen = new QRCodeGenerator();
+            var data = gen.CreateQrCode(payload, QRCodeGenerator.ECCLevel.Q);
+            var code = new PngByteQRCode(data);
+            var png = code.GetGraphic(20);
+            File.WriteAllBytes(Path.Combine(AppContext.BaseDirectory, "connect_qr.png"), png);
+            Console.WriteLine("QR saved: connect_qr.png");
+        } catch (Exception e) { Console.WriteLine("qr err: " + e.Message); }
+        Console.WriteLine("payload: " + payload);
         var listener = new TcpListener(System.Net.IPAddress.Any, 9000);
         listener.Start();
         Console.WriteLine("agent up");

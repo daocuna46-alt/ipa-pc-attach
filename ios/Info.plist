@@ -11,5 +11,7 @@
   <key>UILaunchScreen</key><dict/>
   <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
   <key>NSLocalNetworkUsageDescription</key><string>Connect to PC agent</string>
+  <key>NSCameraUsageDescription</key><string>Scan QR code</string>
+  <key>NSPhotoLibraryUsageDescription</key><string>Pick QR image</string>
 </dict>
 </plist>

@@ -1,5 +1,7 @@
 import UIKit
 import UniformTypeIdentifiers
+import Vision
+import PhotosUI
 
 class ViewController: UIViewController, UIDocumentPickerDelegate {
     let hostField = UITextField()
@@ -66,6 +68,8 @@ class ViewController: UIViewController, UIDocumentPickerDelegate {
         stack.addArrangedSubview(makeBtn("pick file", #selector(pickFile)))
         stack.addArrangedSubview(makeBtn("upload file", #selector(upload)))
         stack.addArrangedSubview(makeBtn("run file", #selector(runFile)))
+        stack.addArrangedSubview(makeBtn("scan qr (camera)", #selector(scanQR)))
+        stack.addArrangedSubview(makeBtn("scan qr (image)", #selector(scanQRImage)))
 
         statusLabel.textColor = .lightGray
         statusLabel.font = .systemFont(ofSize: 12)
@@ -111,5 +115,45 @@ class ViewController: UIViewController, UIDocumentPickerDelegate {
     @objc func runFile() {
         let req = RunReq(cmd: "run", path: runPathField.text ?? "")
         if let f = try? Frame.encode(req) { link.send(f); statusLabel.text = "run sent" }
+    }
+    @objc func scanQR() {
+        let vc = QRScannerVC()
+        vc.onCode = { [weak self] code in self?.applyCode(code) }
+        present(vc, animated: true)
+    }
+    @objc func scanQRImage() {
+        var config = PHPickerConfiguration()
+        config.filter = .images
+        config.selectionLimit = 1
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = self
+        present(picker, animated: true)
+    }
+    func applyCode(_ code: String) {
+        // expect "host:port"
+        let parts = code.split(separator: ":")
+        if parts.count >= 2 {
+            hostField.text = String(parts[0])
+            portField.text = String(parts[1])
+            statusLabel.text = "scanned: \(code)"
+        } else {
+            statusLabel.text = "bad code: \(code)"
+        }
+    }
+}
+
+extension ViewController: PHPickerViewControllerDelegate {
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: true)
+        guard let item = results.first?.itemProvider, item.canLoadObject(ofClass: UIImage.self) else { return }
+        item.loadObject(ofClass: UIImage.self) { [weak self] obj, _ in
+            guard let img = obj as? UIImage, let cg = img.cgImage else { return }
+            let req = VNDetectBarcodesRequest()
+            let handler = VNImageRequestHandler(cgImage: cg, options: [:])
+            try? handler.perform([req])
+            if let r = (req.results as? [VNBarcodeObservation])?.first, let val = r.payloadStringValue {
+                DispatchQueue.main.async { self?.applyCode(val) }
+            }
+        }
     }
 }
